@@ -10,6 +10,7 @@ use App\Http\Controllers\NotificationPreferenceController;
 | API Routes
 |--------------------------------------------------------------------------
 */
+Route::middleware('auth:sanctum')->get('/notifications', [NotificationController::class, 'index']);
 
 Route::get('/notifications', [NotificationController::class, 'index']);
 Route::post('/notifications/trigger', [NotificationController::class, 'trigger']);
