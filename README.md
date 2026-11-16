@@ -277,3 +277,5 @@ The backend tests cover authentication, rate limiting, user isolation, filters, 
 ## License
 
 Released under the [MIT License](LICENSE).
+
+_Last updated: November 2026_
