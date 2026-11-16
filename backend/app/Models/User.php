@@ -2,52 +2,64 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\NotificationChannel;
+use App\Enums\NotificationType;
+use Database\Factories\UserFactory;
+use Illuminate\Contracts\Translation\HasLocalePreference;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable
+#[Fillable(['name', 'email', 'password', 'locale'])]
+#[Hidden(['password', 'remember_token'])]
+class User extends Authenticatable implements HasLocalePreference
 {
+    /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
-    ];
+    public const SUPPORTED_LOCALES = ['en', 'fr'];
+
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+            'is_admin' => 'boolean',
+        ];
+    }
 
     /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
+     * @return HasMany<NotificationPreference, $this>
      */
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
+    public function notificationPreferences(): HasMany
+    {
+        return $this->hasMany(NotificationPreference::class);
+    }
 
     /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
+     * Whether the user wants to receive the given type on the given channel,
+     * falling back to the type's default when no preference is stored.
      */
-    protected $casts = [
-        'email_verified_at' => 'datetime',
-    ];
-    public function notifications()
-{
-    return $this->hasMany(Notification::class);
-}
+    public function wantsNotification(NotificationType $type, NotificationChannel $channel): bool
+    {
+        $preference = $this->notificationPreferences->firstWhere('type', $type);
 
-public function notificationPreferences()
-{
-    return $this->hasOne(NotificationPreference::class);
-}
+        if ($preference === null) {
+            return $type->enabledByDefault($channel);
+        }
+
+        return (bool) $preference->{$channel->value};
+    }
+
+    /**
+     * Used by Laravel to send e-mails in the user's language.
+     */
+    public function preferredLocale(): string
+    {
+        return $this->locale ?? config('app.locale');
+    }
 }
